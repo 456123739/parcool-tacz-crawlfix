@@ -1,0 +1,137 @@
+plugins {
+    id 'java'
+    id 'net.neoforged.moddev.legacyforge' version '2.0.148'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(17)
+}
+
+repositories {
+    // 联调用的本地模组 JAR（仅开发运行时）
+    flatDir {
+        name = 'libs'
+        dirs 'libs'
+    }
+    // 本机离线环境用的极小本地仓库（仅 JUnit launcher，见 README「构建」）
+    maven {
+        name = 'localTestRepo'
+        url = uri('gradle/test-repo')
+    }
+    mavenCentral()
+    // 本机无法直连 maven.neoforged.net；Forge 官方 Maven 是同一批 Forge 构件的等价镜像。
+    maven {
+        name = 'forgeMaven'
+        url = 'https://maven.minecraftforge.net/'
+        content {
+            includeGroup 'net.minecraftforge'
+            includeGroup 'de.oceanlabs.mcp'
+        }
+    }
+}
+
+legacyForge {
+    version = project.forge_version
+
+    mods {
+        crawlfix {
+            sourceSet sourceSets.main
+        }
+    }
+
+    runs {
+        client {
+            client()
+            gameDirectory = project.file('run/client')
+            programArguments.addAll('--username', 'TestPlayer', '--uuid', '00000000000040008000000000000000')
+            loadedMods = [mods.crawlfix]
+        }
+        server {
+            server()
+            gameDirectory = project.file('run/server')
+            loadedMods = [mods.crawlfix]
+        }
+        // 真实客户端自动化测试（CI 里用 xvfb 跑）
+        autotest {
+            client()
+            gameDirectory = project.file('run/autotest')
+            programArguments.addAll('--username', 'TestPlayer', '--uuid', '00000000000040008000000000000000',
+                    '--width', '854', '--height', '480')
+            jvmArguments.addAll('-Dcrawlfix.autotest=true')
+            loadedMods = [mods.crawlfix]
+        }
+    }
+}
+
+// 让 Mixin 注解处理器生成 crawlfix.refmap.json，并把 mixin 配置写进 JAR 清单
+mixin {
+    add sourceSets.main, "crawlfix.refmap.json"
+    config "crawlfix.mixins.json"
+}
+
+configurations.all {
+    resolutionStrategy.eachDependency { details ->
+        // Forge 的 mcp_config 用动态版本 0.6.+；固定到缓存中的版本，避免构建时再去拉 maven-metadata。
+        if (details.requested.group == 'net.jodah' && details.requested.name == 'typetools') {
+            details.useVersion '0.6.3'
+        }
+        if (details.requested.group == 'org.jetbrains' && details.requested.name == 'annotations') {
+            details.useVersion '26.0.2'
+        }
+    }
+}
+
+dependencies {
+    // 仅编译期依赖：生产环境由玩家的 mods 目录提供，绝不打包
+    compileOnly files("libs/ParCool-${project.parcool_version}.jar")
+    compileOnly files("libs/tacz-${project.tacz_version}.jar")
+
+    // 仅本地联调：把两个生产 JAR 放进开发客户端（moddev 会自动重映射到 named）
+    modRuntimeOnly "local:ParCool:${project.parcool_version}"
+    modRuntimeOnly "local:tacz:${project.tacz_version}"
+
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs += ['-parameters']
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+}
+
+processResources {
+    filteringCharset 'UTF-8'
+}
+
+jar {
+    // 自动化测试代码不进入发布 JAR
+    exclude 'com/ns/crawlfix/autotest/**'
+    manifest.attributes([
+            'MixinConfigs': 'crawlfix.mixins.json',
+            'Implementation-Title': project.name,
+            'Implementation-Version': project.version
+    ])
+}
+
+// 生产用 JAR（SRG 名）交给 reobfJar；jar 是开发映射版本
+tasks.named('reobfJar') {
+    archiveClassifier = 'forge'
+}
+
+tasks.named('build') {
+    dependsOn tasks.named('reobfJar')
+}

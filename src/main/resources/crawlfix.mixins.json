@@ -1,0 +1,17 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.ns.crawlfix.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "plugin": "com.ns.crawlfix.mixin.CrawlFixMixinPlugin",
+  "refmap": "crawlfix.refmap.json",
+  "client": [
+    "CrawlKeyMixin",
+    "LocalPlayerCrawlMixin",
+    "ParCoolCrawlMixin",
+    "PlayerPoseMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

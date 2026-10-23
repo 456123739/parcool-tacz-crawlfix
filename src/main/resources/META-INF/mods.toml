@@ -1,0 +1,45 @@
+modLoader = "javafml"
+loaderVersion = "[47,)"
+license = "MIT"
+issueTrackerURL = "https://example.invalid/parcool-tacz-crawlfix/issues"
+
+[[mods]]
+modId = "crawlfix"
+version = "${file.jarVersion}"
+displayName = "ParCool x TACZ Crawl Fix"
+authors = "NS"
+description = '''
+Makes ParCool's crawl/slide and TACZ's prone share a single state while both mods are installed.
+Fixes: stuck in prone after a quick tap of the crawl key, stuck prone when releasing the key at the
+slide -> crawl transition, and the prone/standing flutter caused by the two mods fighting over the
+player's pose.
+Does nothing when either mod is missing.
+'''
+
+[[dependencies.crawlfix]]
+modId = "forge"
+mandatory = true
+versionRange = "[47,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.crawlfix]]
+modId = "minecraft"
+mandatory = true
+versionRange = "[1.20.1,1.21)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.crawlfix]]
+modId = "parcool"
+mandatory = false
+versionRange = "[3.3.1.0,)"
+ordering = "AFTER"
+side = "CLIENT"
+
+[[dependencies.crawlfix]]
+modId = "tacz"
+mandatory = false
+versionRange = "[1.1.7,)"
+ordering = "AFTER"
+side = "CLIENT"

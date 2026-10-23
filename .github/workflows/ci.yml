@@ -1,0 +1,110 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build & unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle', 'gradle.properties', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      - name: Fetch compile-only mod jars
+        run: |
+          chmod +x gradlew scripts/fetch-deps.sh
+          ./scripts/fetch-deps.sh
+
+      - name: Build
+        run: ./gradlew build --no-daemon --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: crawlfix-jar
+          path: build/libs/*-forge.jar
+          if-no-files-found: error
+
+  autotest:
+    name: Real client autotest (xvfb)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle', 'gradle.properties', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      - name: Install software OpenGL + virtual display
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb libgl1-mesa-dri libglu1-mesa
+
+      - name: Fetch compile-only mod jars
+        run: |
+          chmod +x gradlew scripts/fetch-deps.sh
+          ./scripts/fetch-deps.sh
+
+      - name: Run in-game autotest
+        run: |
+          xvfb-run -a -s "-screen 0 1280x720x24" \
+            ./gradlew runAutotest --no-daemon --stacktrace 2>&1 | tee autotest-console.log
+
+      - name: Upload autotest evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: autotest-evidence
+          path: |
+            run/autotest/autotest-report.txt
+            run/autotest/logs/**
+            autotest-console.log
+          if-no-files-found: warn
+
+  release:
+    name: Attach release jar
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [ build, autotest ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: crawlfix-jar
+          path: dist
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.jar
+          generate_release_notes: true
