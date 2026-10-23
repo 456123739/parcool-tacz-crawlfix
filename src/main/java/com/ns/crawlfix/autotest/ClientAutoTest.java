@@ -58,6 +58,8 @@ public final class ClientAutoTest {
     private static int stepTick;
     private static boolean gunGiven;
     private static boolean finished;
+    private static boolean ready;
+    private static int readyTicks;
 
     // 逐 tick 采样（用于检查姿势抖动 / 状态掉线）
     private static boolean sampling;
@@ -140,6 +142,24 @@ public final class ClientAutoTest {
             return;
         }
 
+        if (!ready) {
+            // 等 ParCool 的限制同步完成、TACZ 的枪械索引加载完成、玩家稳定站在地面，
+            // 否则第一组用例可能跑在模组还没就绪的时候（CI 上尤其明显）。
+            if (isReady(mc.player)) {
+                if (++readyTicks >= 10) {
+                    ready = true;
+                    log("setup", "ParCool / TACZ 已就绪，开始测试");
+                }
+            } else {
+                readyTicks = 0;
+            }
+            if (ticksInWorld > 400) {
+                fail("setup", "等待 ParCool / TACZ 就绪超时");
+                finish();
+            }
+            return;
+        }
+
         if (sampling) {
             sample(mc.player);
         }
@@ -213,6 +233,21 @@ public final class ClientAutoTest {
         }
         if (expectTaczStable && sampledTaczDrops > 0) {
             throw new AssertionError(label + " 期间 TACZ 趴下状态掉了 " + sampledTaczDrops + " 次（状态错相/闪烁）");
+        }
+    }
+
+    private static boolean isReady(LocalPlayer player) {
+        Parkourability parkourability = Parkourability.get(player);
+        if (parkourability == null || !parkourability.getActionInfo().can(Crawl.class)) {
+            return false;
+        }
+        if (!player.onGround() || player.getPose() == Pose.SWIMMING) {
+            return false;
+        }
+        try {
+            return com.tacz.guns.api.TimelessAPI.getClientGunIndex(new ResourceLocation("tacz", "ak47")).isPresent();
+        } catch (Throwable throwable) {
+            return false;
         }
     }
 

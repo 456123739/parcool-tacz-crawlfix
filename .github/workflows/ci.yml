@@ -76,7 +76,10 @@ jobs:
           ./scripts/fetch-deps.sh
 
       - name: Run in-game autotest
+        shell: bash
         run: |
+          # 关键：没有 pipefail 时 tee 会吞掉 Gradle/客户端的失败退出码
+          set -o pipefail
           xvfb-run -a -s "-screen 0 1280x720x24" \
             ./gradlew runAutotest --no-daemon --stacktrace 2>&1 | tee autotest-console.log
 
