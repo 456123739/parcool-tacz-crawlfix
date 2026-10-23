@@ -81,7 +81,18 @@ xvfb-run -a -s "-screen 0 1280x720x24" ./gradlew runAutotest
 * CI（GitHub Actions）会在 `xvfb + llvmpipe` 下重复这套测试，并上传报告与完整日志；
 * 发布 JAR 不包含测试代码（`com/ns/crawlfix/autotest/**`）。
 
-## 6. 兼容性
+## 6. 验证结果
+
+| 环境 | 组合 | 结果 |
+| --- | --- | --- |
+| 真实客户端（本机，Mesa 软件渲染） | ParCool 3.3.1.0 + TACZ 1.1.7 / 1.1.8 | 各 **50/50 断言通过** |
+| GitHub Actions（xvfb + llvmpipe） | ParCool 3.3.1.0 + TACZ 1.1.7 | **50/50 断言通过**（main 与 v1.0.0） |
+| 单元测试 | — | 10/10 通过 |
+
+修复前的同一套真实客户端测试有 **17 项失败**，现象与玩家反馈一致；修复后全部通过。
+详见 [`docs/TESTPLAN.md`](docs/TESTPLAN.md)。
+
+## 7. 兼容性
 
 | 组件 | 版本 |
 | --- | --- |
@@ -89,7 +100,7 @@ xvfb-run -a -s "-screen 0 1280x720x24" ./gradlew runAutotest
 | ParCool | **1.20.1-3.3.1.0**（编译目标）；3.4.x 的公开 API 未变，亦可工作 |
 | TACZ | 1.1.7 与 1.1.8（`LocalPlayerCrawl` / `CrawlKey` 的相关成员一致） |
 
-## 7. 目录结构
+## 8. 目录结构
 
 ```
 parcool-tacz-crawlfix/
@@ -111,7 +122,7 @@ parcool-tacz-crawlfix/
 └── .github/workflows/ci.yml     # 构建 + xvfb 真实客户端测试 + Release
 ```
 
-## 8. 隔离与来源
+## 9. 隔离与来源
 
 * 本工程为独立目录，自带 Gradle 包装器与独立的 Gradle 缓存（`.gradle-home/`，已 gitignore）；
   开发过程未修改工作区内任何其它文件（只读取现成的 ParCool/TACZ JAR 用于分析与编译）。

@@ -59,11 +59,19 @@ xvfb-run -a -s "-screen 0 1280x720x24" ./gradlew runAutotest --no-daemon
 
 ## 3. 结果
 
-* 单元测试：全部通过。
-* 真实客户端自动化：见 `run/autotest/autotest-report.txt`（CI 每次构建都会上传该文件与完整日志）。
-* 发布 JAR 检查：`unzip -l build/libs/crawlfix-1.0.0-forge.jar` 应包含
-  `META-INF/mods.toml`、`crawlfix.mixins.json`、`crawlfix.refmap.json` 与 4 个 Mixin 类，
-  且**不含** `com/ns/crawlfix/autotest/**`、ParCool 或 TACZ 的任何类。
+| 环境 | 组合 | 结果 |
+| --- | --- | --- |
+| 本机真实客户端（Xwayland + Mesa llvmpipe 软件渲染） | ParCool 3.3.1.0 + TACZ 1.1.7-hotfix2 | **PASS，50/50 断言** |
+| 本机真实客户端 | ParCool 3.3.1.0 + **TACZ 1.1.8-hotfix2** | **PASS，50/50 断言** |
+| GitHub Actions（ubuntu + xvfb + llvmpipe） | ParCool 3.3.1.0 + TACZ 1.1.7-hotfix2 | **PASS，50/50 断言**（main 与 v1.0.0 各一次） |
+| 单元测试 | — | **10/10 通过** |
+
+**反向验证**：在加入 `ParCoolCrawlMixin`（姿态锁存修复）之前，同一套真实客户端测试出现
+**17 项失败**，失败信息与玩家反馈完全一致（`松手后仍然趴着: parcool=true tacz=true pose=SWIMMING`、
+连续点按后状态错相等）。加入修复后全部通过 —— 说明测试确实能捕获该缺陷，而不是“碰巧通过”。
+
+发布 JAR 检查：`crawlfix-1.0.0-forge.jar` 包含 `META-INF/mods.toml`、`crawlfix.mixins.json`、
+`crawlfix.refmap.json` 与 4 个 Mixin 类，**不含** `com/ns/crawlfix/autotest/**`，也不含 ParCool / TACZ 的任何类。
 
 ## 4. 游戏内手工验收（发布前建议）
 
