@@ -1,5 +1,10 @@
 # ParCool × TACZ 趴下修复（1.20.1 Forge）
 
+[![CI](https://github.com/456123739/parcool-tacz-crawlfix/actions/workflows/ci.yml/badge.svg)](https://github.com/456123739/parcool-tacz-crawlfix/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/456123739/parcool-tacz-crawlfix)](https://github.com/456123739/parcool-tacz-crawlfix/releases)
+
+**下载**：见 [Releases](https://github.com/456123739/parcool-tacz-crawlfix/releases)（`crawlfix-1.0.0-forge.jar`）。
+
 一个小而专一的客户端修复模组：当 **ParCool!（爬行 / 滑铲）** 与 **Timeless & Classics Guns: Zero（趴下）**
 同时安装时，把玩家“趴下”这件事收敛成**唯一的一份状态**，并修掉 ParCool 的姿态锁存缺陷，彻底解决：
 
