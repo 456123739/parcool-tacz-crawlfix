@@ -174,6 +174,24 @@ ParCool 在 `PlayerTickEvent.END` 里写 `SWIMMING`，写在原版计算**之后
 
 ---
 
+## 2.5 真实整合包里仍然可能“松手不起”的两条漏网路径（1.0.1 补修）
+
+1. **把 `Crawl#isDoing()` 当作趴下成立的充分条件**。
+   即使修掉了 1.1 的锁存，只要 ParCool 因为别的原因在松键后继续 doing，修复层仍会维持趴下：
+   * ParCool 的 `CrawlControl` 被配置为 `Toggle`：松手本来就该继续趴，直到再按一次；
+   * 其它模组/异常状态让 `Slide` 或 `Crawl` 多活几 tick；
+   * 版本差异导致 `ParCoolCrawlMixin` 的注入没有生效。
+
+   现象就是“站起延迟 / 偶尔站不起来”；而跳跃有时能触发 ParCool 的跳跃取消/让动作结束，
+   所以“按跳跃有时管用”。
+
+2. **TACZ 趴下键的接管条件依赖 `ActionInfo#can(Crawl)`**。
+   该值 = `ParCool.isActive() && 客户端设置 && 服务器限制`，会随服务器限制同步、维度切换等
+   短暂变成 false。若按键恰好发生在那个窗口，`CrawlKey` 的切换式逻辑就会执行：
+   玩家站起来后立刻又被切回趴下 —— 正是“站起来又立马趴下去”。
+
+修法见 `docs/DESIGN.md`：输入权威 + 强制按住式 + 锁存兜底 + 空闲站立兜底 + 无条件接管按键。
+
 ## 3. 版本差异备注
 
 * TACZ 1.1.8 的 `tickCrawl()` 额外检查 `player.jumping` 与 `player.isSwimming()`；1.1.7 没有。

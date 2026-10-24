@@ -41,7 +41,11 @@
 | ② | TACZ 趴下状态（本地 + 服务端）与 ParCool `Crawl \|\| Slide` 强制对齐；写入不受 10 tick 冷却与 `onGround` 限制；跟踪“服务端已知状态”并补发 | `LocalPlayerCrawlMixin` + `ProneBridge` |
 | ③ | 趴下输入只保留一份：两个模组都在时接管 TACZ 的趴下键（键盘 + 手柄） | `CrawlKeyMixin` |
 | ④ | 姿势权威：ParCool 趴下期间由 `updatePlayerPose` 直接产出 `SWIMMING`，不再每 tick 被改两次；结束时立刻恢复站立/潜行 | `PlayerPoseMixin` + `ProneBridge#restorePose` |
-| ⑤ | 防抖：滑铲“再点一下”造成的 1~2 tick 松手不会闪、不会产生无意义同步包 | `ProneArbiter`（`stand_debounce_ticks`，默认 2） |
+| ⑤ | 防抖：滑铲“再点一下”造成的 1 tick 松手不会闪、不会产生无意义同步包 | `ProneArbiter`（`stand_debounce_ticks`，默认 1） |
+| ⑥ | **输入权威**：只有趴下键仍按下（或切换模式开启）才算趴下；输入消失后任何 doing 状态都不能维持趴下 | `ProneBridge` |
+| ⑦ | **强制按住式**：即使 ParCool 配成 Toggle，也按“松开即起”工作（可关） | `ParCoolCrawlMixin` + `ProneBridge#forceHoldToCrawl` |
+| ⑧ | **锁存兜底**：松键后 ParCool 仍 doing 超过 2 tick，强制结束 Crawl/Slide 并同步服务端 | `ProneBridge#stopProneActions` |
+| ⑨ | **空闲站立兜底**：每 tick 检查，无趴下来源时清除残留的 `SWIMMING` 与强制姿势 | `ProneBridge#enforceStanding` |
 
 **不做的事**：不修改 ParCool / TACZ 的文件，不替换它们的趴下效果，不改它们的配置，
 不在缺少任一模组或 ParCool 爬行被限制关闭时做任何事。
@@ -63,7 +67,11 @@
 | `general.enabled` | `true` | 总开关；关闭后模组完全不做事 |
 | `general.restore_pose_on_end` | `true` | 趴下结束时立刻纠正残留姿势 |
 | `general.disable_tacz_crawl_key` | `true` | 由 ParCool 的趴下键独占输入 |
-| `general.stand_debounce_ticks` | `2` | 松开后保持趴下的 tick 数（0–5），用于吸收滑铲“再点一下”的短暂松手 |
+| `general.stand_debounce_ticks` | `1` | 松开后保持趴下的 tick 数（0–5），用于吸收滑铲“再点一下”的短暂松手 |
+| `general.force_hold_to_crawl` | `true` | 即使 ParCool 配置为 Toggle，也强制“按住才趴、松开即起” |
+| `general.enforce_standing` | `true` | 空闲时若仍是趴下姿势，强制恢复站立/潜行 |
+| `general.clear_stale_forced_pose` | `true` | 清理其它来源残留的 `SWIMMING` 强制姿势 |
+| `general.debug_log` | `false` | 输出状态切换日志（排查用） |
 
 ## 5. 构建与测试
 
@@ -85,8 +93,9 @@ xvfb-run -a -s "-screen 0 1280x720x24" ./gradlew runAutotest
 
 | 环境 | 组合 | 结果 |
 | --- | --- | --- |
-| 真实客户端（本机，Mesa 软件渲染） | ParCool 3.3.1.0 + TACZ 1.1.7 / 1.1.8 | 各 **50/50 断言通过** |
-| GitHub Actions（xvfb + llvmpipe） | ParCool 3.3.1.0 + TACZ 1.1.7 | **50/50 断言通过**（main 与 v1.0.0） |
+| 真实客户端（本机，Mesa 软件渲染） | ParCool 3.3.1.0 + TACZ 1.1.7 | **59/59 断言通过**（含动作锁存对抗、Toggle 模式、残留强制姿势） |
+| 真实客户端（本机） | ParCool 3.3.1.0 + TACZ 1.1.8 | **50/50 断言通过**（1.0.0 基线） |
+| GitHub Actions（xvfb + llvmpipe） | ParCool 3.3.1.0 + TACZ 1.1.7 | **通过**（main 与 v1.0.0 基线；1.0.1 由 CI 复跑） |
 | 单元测试 | — | 10/10 通过 |
 
 修复前的同一套真实客户端测试有 **17 项失败**，现象与玩家反馈一致；修复后全部通过。

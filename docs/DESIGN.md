@@ -10,7 +10,7 @@
 4. **不丢输入** —— 绕过 TACZ 的 10 tick 冷却、`onGround` 取消门槛与“只清本地不发包”的分支。
 5. **完全惰性** —— 缺少任一前置模组、或 ParCool 的爬行被限制关闭时，本模组不做任何事。
 
-## 四条修复支柱
+## 修复支柱
 
 ### ① 修掉 ParCool 的“姿态锁存”（主因）
 
@@ -81,6 +81,33 @@ ParCool 的滑铲需要在爬行中再点一下趴下键，这一次点击必然
 
 `ProneArbiter` 内置 `stand_debounce_ticks`（默认 2）：松开后先保持趴下状态若干 tick，
 期间如果重新按下则完全无感；真正松手时最多延迟 2 tick（约 100ms）站起。
+
+### ⑤ 输入权威（1.0.1）
+
+前四条仍然把 `Crawl#isDoing()` 当作“趴下”的充分条件。真实整合包里，ParCool 可能因为
+`CrawlControl=Toggle`、版本差异或被其它模组干扰而在松键后继续 doing；这时修复层会继续
+把 TACZ 与姿势锁在趴下 —— 表现为站起延迟/永久趴着，而跳跃有时能结束动作，所以“时灵时不灵”。
+
+1.0.1 把**输入**提升为最终权威：
+
+```
+proneForState = (Crawl.isDoing() || Slide.isDoing()) && crawlInputHeld()
+```
+
+`crawlInputHeld()`：PressKey 模式看按键；Toggle 模式看 `toggleStatus`；
+默认 `force_hold_to_crawl=true` 时**一律看按键**（并屏蔽 ParCool 的 toggle 翻转、同步
+`toggleStatus`），保证“松开即起”。
+
+配套三道兜底：
+
+* **锁存兜底**：输入消失后仍 doing 连续 2 tick → 强制 `setDoing(false)` + `onStop`，
+  并通过 `SyncActionStateMessage.Encoder#appendFinishMsg` 通知服务端（姿势/碰撞箱一起恢复）。
+* **空闲站立兜底**：每 tick 检查，输入松开且没有任何趴下来源时，若姿势仍是 `SWIMMING`
+  或残留 `forcedPose(SWIMMING)`，直接恢复站立/潜行（低矮空间保持趴下）。
+* **ParCool 爬行被禁用时**：清掉可能残留的 TACZ 趴下状态，不再卡住。
+
+另外，TACZ 趴下键的接管不再依赖 `ActionInfo#can(Crawl)`（该值会随服务器限制同步短暂变化，
+漏键时 TACZ 的切换式按键会漏进来，造成“站起来又立刻趴下”）。
 
 ## 时序
 

@@ -4,7 +4,10 @@ import com.alrex.parcool.client.input.KeyBindings;
 import com.alrex.parcool.common.action.impl.Crawl;
 import com.alrex.parcool.common.action.impl.Slide;
 import com.alrex.parcool.common.capability.Parkourability;
+import com.alrex.parcool.config.ParCoolConfig;
 import com.ns.crawlfix.CrawlFix;
+import com.ns.crawlfix.client.CrawlStateAccess;
+import com.ns.crawlfix.client.CrawlStateHolder;
 import com.tacz.guns.api.client.gameplay.IClientPlayerGunOperator;
 import com.tacz.guns.api.item.builder.GunItemBuilder;
 import net.minecraft.client.Minecraft;
@@ -60,6 +63,7 @@ public final class ClientAutoTest {
     private static boolean finished;
     private static boolean ready;
     private static int readyTicks;
+    private static boolean forceLatchedCrawl;
 
     // 逐 tick 采样（用于检查姿势抖动 / 状态掉线）
     private static boolean sampling;
@@ -106,6 +110,13 @@ public final class ClientAutoTest {
         Step step = currentStep();
         if (step != null) {
             applyInputs(mc, step);
+        }
+        if (forceLatchedCrawl) {
+            // 模拟“ParCool 动作在松键后仍然 doing”的锁存状态（旧版本 / 其它模组干扰）
+            Parkourability parkourability = Parkourability.get(mc.player);
+            if (parkourability != null) {
+                parkourability.get(Crawl.class).setDoing(true);
+            }
         }
     }
 
@@ -311,7 +322,7 @@ public final class ClientAutoTest {
 
         // 1. 快速点一下趴下键：松手后必须站起
         steps.add(new Step("tap_press", 1, true, false, false, null));
-        steps.add(new Step("tap_release_stands_up", 6, false, false, false,
+        steps.add(new Step("tap_release_stands_up", 4, false, false, false,
                 () -> assertStanding("快速点按后松手")));
 
         // 2. 按住趴下键：应进入趴下、TACZ 同步，并且全程姿势不得抖动
@@ -320,7 +331,7 @@ public final class ClientAutoTest {
             stopSamplingAndAssert("长按趴下", true, true);
             assertProneAndSynced();
         }));
-        steps.add(new Step("hold_release_stands_up", 6, false, false, false,
+        steps.add(new Step("hold_release_stands_up", 4, false, false, false,
                 () -> assertStanding("长按后松手")));
 
         // 3. 连续快速点按 10 次（旧实现会在这里错相/抽搐）
@@ -334,12 +345,12 @@ public final class ClientAutoTest {
         // 4. 爬行中“再点一下”（松开 2 tick 再按）：趴下状态不得掉线、姿势不得闪
         steps.add(new Step("retap_hold", 12, true, false, false, null));
         steps.add(new Step("retap_monitor_start", 1, true, false, false, () -> startSampling("爬行中再点一下")));
-        steps.add(new Step("retap_gap", 2, false, false, false, null));
+        steps.add(new Step("retap_gap", 1, false, false, false, null));
         steps.add(new Step("retap_press_again", 10, true, false, false, () -> {
             stopSamplingAndAssert("爬行中再点一下", true, true);
             assertProneAndSynced();
         }));
-        steps.add(new Step("retap_release", 6, false, false, false,
+        steps.add(new Step("retap_release", 4, false, false, false,
                 () -> assertStanding("爬行中再点一下之后松手")));
 
         // 5. 冲刺 + 疾跑 + 趴下 -> 触发滑铲；滑铲中途松手
@@ -350,7 +361,7 @@ public final class ClientAutoTest {
             stopSamplingAndAssert("滑铲", true, true);
             assertProneAndSynced();
         }));
-        steps.add(new Step("slide_release_mid", 6, false, false, false,
+        steps.add(new Step("slide_release_mid", 4, false, false, false,
                 () -> assertStanding("滑铲中途松手")));
 
         // 6. 再次滑铲并一直按到滑铲自然结束（滑铲 -> 爬行），随后松手
@@ -359,7 +370,7 @@ public final class ClientAutoTest {
         steps.add(new Step("slide2_hold", 70, true, false, false, () -> {
             assertProneAndSynced();
         }));
-        steps.add(new Step("slide2_release", 6, false, false, false,
+        steps.add(new Step("slide2_release", 4, false, false, false,
                 () -> assertStanding("滑铲转爬行后松手")));
 
         // 7. 复原旧版残留的 TACZ 趴下状态：修复层应在一 tick 内把它清掉
@@ -373,6 +384,31 @@ public final class ClientAutoTest {
                 throw new AssertionError("残留趴下未被清理: tacz=" + tacz + " pose=" + player.getPose()
                         + " forced=" + player.getForcedPose());
             }
+        }));
+
+        // 8. 对抗性场景：ParCool 动作在松键后仍然 doing（锁存）+ TACZ 状态残留
+        //    这是“松开按键仍然趴着 / 站起来又趴下去”的直接复现，修复层必须把它拉回站立。
+        steps.add(new Step("latched_crawl_start", 1, false, false, false, () -> {
+            forceLatchedCrawl = true;
+            CrawlStateAccess tacz = CrawlStateHolder.get(player());
+            if (tacz != null) {
+                tacz.crawlfix$apply(true);
+            }
+            startSampling("动作锁存");
+        }));
+        steps.add(new Step("latched_crawl_hold", 8, false, false, false, () -> {
+            LocalPlayer player = player();
+            if (IClientPlayerGunOperator.fromLocalPlayer(player).isCrawl()) {
+                throw new AssertionError("输入已松开，TACZ 却仍在趴下");
+            }
+            if (player.getPose() == Pose.SWIMMING) {
+                throw new AssertionError("输入已松开，玩家仍然保持 SWIMMING 姿势（被锁存的动作/强制姿势按住）");
+            }
+            stopSamplingAndAssert("动作锁存", false, false);
+        }));
+        steps.add(new Step("latched_crawl_release", 4, false, false, false, () -> {
+            forceLatchedCrawl = false;
+            assertStanding("锁存解除");
         }));
 
         // 8. 空中爬行：ParCool 允许、TACZ 不能；姿势仍必须稳定不抖，落地松手能站起
@@ -400,7 +436,26 @@ public final class ClientAutoTest {
             }
             stopSamplingAndAssert("空手趴下", true, false);
         }));
-        steps.add(new Step("no_gun_release", 6, false, false, false, () -> assertStanding("空手松手")));
+        steps.add(new Step("no_gun_release", 4, false, false, false, () -> assertStanding("空手松手")));
+
+        // 10. ParCool 被配置成 Toggle 模式时，也必须“松手即起”（force_hold_to_crawl）
+        steps.add(new Step("toggle_mode_switch", 1, false, false, false,
+                () -> ParCoolConfig.Client.CrawlControl.set(Crawl.ControlType.Toggle)));
+        steps.add(new Step("toggle_mode_hold", 10, true, false, false,
+                () -> assertParCoolProne("Toggle 模式按住")));
+        steps.add(new Step("toggle_mode_release", 5, false, false, false,
+                () -> assertStanding("Toggle 模式松手")));
+        steps.add(new Step("toggle_mode_restore", 1, false, false, false,
+                () -> ParCoolConfig.Client.CrawlControl.set(Crawl.ControlType.PressKey)));
+
+        // 11. 别的来源残留的 SWIMMING 强制姿势也要被清掉
+        steps.add(new Step("stale_forced_pose", 1, false, false, false,
+                () -> player().setForcedPose(Pose.SWIMMING)));
+        steps.add(new Step("stale_forced_pose_cleared", 4, false, false, false, () -> {
+            if (player().getForcedPose() == Pose.SWIMMING || player().getPose() == Pose.SWIMMING) {
+                throw new AssertionError("残留的 SWIMMING 强制姿势没有被清理");
+            }
+        }));
 
         return steps;
     }
