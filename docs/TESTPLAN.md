@@ -56,21 +56,24 @@ xvfb-run -a -s "-screen 0 1280x720x24" ./gradlew runAutotest --no-daemon
 | 7 | 模拟旧版残留的 TACZ 趴下 | 1 tick 内被清理 |
 | 8 | 空中爬行（TACZ 不参与） | 姿势稳定，落地松手站起 |
 | 9 | 空手趴下 | TACZ 不参与，姿势稳定，松手站起 |
+| 10 | **动作锁存对抗**：松键后仍强制 ParCool doing + TACZ 趴下 | 不保持趴下姿势、TACZ 被清掉、解除后站立 |
+| 11 | **Toggle 模式**：ParCool 配成 Toggle | 仍然“松手即起” |
+| 12 | **残留强制姿势**：手动设置 `forcedPose(SWIMMING)` | 1 tick 内被清理并站起 |
 
 ## 3. 结果
 
 | 环境 | 组合 | 结果 |
 | --- | --- | --- |
-| 本机真实客户端（Xwayland + Mesa llvmpipe 软件渲染） | ParCool 3.3.1.0 + TACZ 1.1.7-hotfix2 | **PASS，50/50 断言** |
-| 本机真实客户端 | ParCool 3.3.1.0 + **TACZ 1.1.8-hotfix2** | **PASS，50/50 断言** |
-| GitHub Actions（ubuntu + xvfb + llvmpipe） | ParCool 3.3.1.0 + TACZ 1.1.7-hotfix2 | **PASS，50/50 断言**（main 与 v1.0.0 各一次） |
+| 本机真实客户端（Xwayland + Mesa llvmpipe 软件渲染） | ParCool 3.3.1.0 + TACZ 1.1.7-hotfix2 | **PASS，59/59 断言** |
+| 本机真实客户端 | ParCool 3.3.1.0 + **TACZ 1.1.8-hotfix2** | **PASS，59/59 断言** |
+| GitHub Actions（ubuntu + xvfb + llvmpipe） | ParCool 3.3.1.0 + TACZ 1.1.7-hotfix2 | **PASS，59/59 断言**（main 与 v1.0.1） |
 | 单元测试 | — | **10/10 通过** |
 
 **反向验证**：在加入 `ParCoolCrawlMixin`（姿态锁存修复）之前，同一套真实客户端测试出现
 **17 项失败**，失败信息与玩家反馈完全一致（`松手后仍然趴着: parcool=true tacz=true pose=SWIMMING`、
 连续点按后状态错相等）。加入修复后全部通过 —— 说明测试确实能捕获该缺陷，而不是“碰巧通过”。
 
-发布 JAR 检查：`crawlfix-1.0.0-forge.jar` 包含 `META-INF/mods.toml`、`crawlfix.mixins.json`、
+发布 JAR 检查：`crawlfix-1.0.1-forge.jar` 包含 `META-INF/mods.toml`、`crawlfix.mixins.json`、
 `crawlfix.refmap.json` 与 4 个 Mixin 类，**不含** `com/ns/crawlfix/autotest/**`，也不含 ParCool / TACZ 的任何类。
 
 ## 4. 游戏内手工验收（发布前建议）

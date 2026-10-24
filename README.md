@@ -3,7 +3,7 @@
 [![CI](https://github.com/456123739/parcool-tacz-crawlfix/actions/workflows/ci.yml/badge.svg)](https://github.com/456123739/parcool-tacz-crawlfix/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/456123739/parcool-tacz-crawlfix)](https://github.com/456123739/parcool-tacz-crawlfix/releases)
 
-**下载**：见 [Releases](https://github.com/456123739/parcool-tacz-crawlfix/releases)（`crawlfix-1.0.0-forge.jar`）。
+**下载**：见 [Releases](https://github.com/456123739/parcool-tacz-crawlfix/releases)（`crawlfix-1.0.1-forge.jar`）。
 
 一个小而专一的客户端修复模组：当 **ParCool!（爬行 / 滑铲）** 与 **Timeless & Classics Guns: Zero（趴下）**
 同时安装时，把玩家“趴下”这件事收敛成**唯一的一份状态**，并修掉 ParCool 的姿态锁存缺陷，彻底解决：
@@ -53,7 +53,7 @@
 ## 3. 安装
 
 1. **Forge 1.20.1（47.x）** + **ParCool 1.20.1-3.3.1.0** + **TACZ 1.20.1-1.1.7 / 1.1.8**；
-2. 把 `crawlfix-1.0.0-forge.jar` 放进 `mods/`（客户端安装即可，服务端装不装都不影响）；
+2. 把 `crawlfix-1.0.1-forge.jar` 放进 `mods/`（客户端安装即可，服务端装不装都不影响）；
 3. 键位保持默认（两个模组的趴下键都是 `C`）即可。
 
 下载：见本仓库的 **Releases** 页面（CI 构建产物同时作为 workflow artifact 提供）。
@@ -78,7 +78,7 @@
 ```bash
 # 依赖：JDK 17；首次构建需要联网
 ./scripts/fetch-deps.sh          # 下载仅用于编译的 ParCool 3.3.1.0 / TACZ 1.1.7 JAR 到 libs/
-./gradlew build                  # 单元测试 + 编译 + 重混淆，产物 build/libs/crawlfix-1.0.0-forge.jar
+./gradlew build                  # 单元测试 + 编译 + 重混淆，产物 build/libs/crawlfix-1.0.1-forge.jar
 
 # 真实客户端自动化测试（需要 X11/Wayland + OpenGL；无显卡时用 Mesa 软件渲染）
 xvfb-run -a -s "-screen 0 1280x720x24" ./gradlew runAutotest
@@ -94,8 +94,8 @@ xvfb-run -a -s "-screen 0 1280x720x24" ./gradlew runAutotest
 | 环境 | 组合 | 结果 |
 | --- | --- | --- |
 | 真实客户端（本机，Mesa 软件渲染） | ParCool 3.3.1.0 + TACZ 1.1.7 | **59/59 断言通过**（含动作锁存对抗、Toggle 模式、残留强制姿势） |
-| 真实客户端（本机） | ParCool 3.3.1.0 + TACZ 1.1.8 | **50/50 断言通过**（1.0.0 基线） |
-| GitHub Actions（xvfb + llvmpipe） | ParCool 3.3.1.0 + TACZ 1.1.7 | **通过**（main 与 v1.0.0 基线；1.0.1 由 CI 复跑） |
+| 真实客户端（本机） | ParCool 3.3.1.0 + TACZ 1.1.8 | **59/59 断言通过** |
+| GitHub Actions（xvfb + llvmpipe） | ParCool 3.3.1.0 + TACZ 1.1.7 | **59/59 断言通过**（main 与 v1.0.1） |
 | 单元测试 | — | 10/10 通过 |
 
 修复前的同一套真实客户端测试有 **17 项失败**，现象与玩家反馈一致；修复后全部通过。
